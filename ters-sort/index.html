@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Ters Sort</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: one-screen lab bench — dispenser pipe on top, holding pockets, a row of glass tubes below. Single dark look by choice. */
+:root{
+  --bg:#141a24; --bench:#1d2533; --glass:#2a3446; --line:#3c4960; --fg:#e8edf6; --muted:#8e9ab0;
+  --ok:#5ee0a0; --bad:#ff5d6c; --warn:#ffc04d;
+  --c-red:#ef4a55; --c-blue:#3d8bff; --c-orange:#ff8a2b; --c-yellow:#ffd23f; --c-purple:#a65cf0;
+  --f-display:"Bungee","Arial Black",Impact,sans-serif;
+  --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);padding-inline:16px;
+  background-image:radial-gradient(ellipse at 50% -10%,#24314a 0%,transparent 60%);user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.app{max-width:560px;margin:0 auto;padding-block:14px 24px;display:flex;flex-direction:column;gap:16px;min-height:100%;box-sizing:border-box}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:400;font-size:28px;margin:0;letter-spacing:.02em;line-height:1}
+h1 span{color:var(--c-orange)}
+.stats{display:flex;gap:14px;font-variant-numeric:tabular-nums}
+.stat{display:flex;flex-direction:column;align-items:flex-end}
+.stat b{font-size:20px;font-weight:800;line-height:1.1}
+.stat small{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+.rule{background:var(--bench);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--muted);line-height:1.4}
+.rule strong{color:var(--fg)}
+
+/* dispenser */
+.feed{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pipe{flex:1 1 240px;display:flex;align-items:center;gap:10px;background:var(--glass);border:2px solid var(--line);border-radius:999px;padding:8px 14px 8px 8px;position:relative;min-width:0}
+.pipe .label{position:absolute;top:-9px;left:18px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;background:var(--bg);padding:0 6px;color:var(--muted)}
+.next{display:flex;gap:8px;align-items:center;opacity:.75}
+.timer{flex:1;height:8px;border-radius:99px;background:var(--bench);overflow:hidden;min-width:40px}
+.timer i{display:block;height:100%;width:100%;background:var(--ok);border-radius:99px;transform-origin:left}
+.hold{display:flex;gap:10px;align-items:center}
+.hold .label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);writing-mode:vertical-rl;transform:rotate(180deg)}
+.pocket{width:52px;height:52px;border-radius:14px;border:2px dashed var(--line);display:grid;place-items:center;cursor:pointer;background:transparent;padding:0;color:inherit}
+.pocket.sel{border-style:solid;border-color:var(--fg);box-shadow:0 0 0 3px rgba(255,255,255,.12)}
+.pocket:focus-visible,.tube:focus-visible{outline:3px solid var(--warn);outline-offset:3px}
+
+/* balls */
+.ball{--c:var(--c-red);width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:15px;color:rgba(0,0,0,.45);font-weight:800;
+  background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.65) 0 12%,transparent 13%),radial-gradient(circle at 50% 55%,var(--c) 55%,color-mix(in srgb,var(--c) 70%,#000) 100%);
+  box-shadow:inset 0 -3px 6px rgba(0,0,0,.25)}
+.ball.big{width:52px;height:52px;font-size:20px;cursor:pointer}
+.ball.big.sel{box-shadow:inset 0 -3px 6px rgba(0,0,0,.25),0 0 0 3px var(--bg),0 0 0 6px var(--fg)}
+.ball.sm{width:28px;height:28px;font-size:11px}
+.ghost{width:38px;height:38px;border-radius:50%;border:2px dashed var(--c);opacity:.55;box-sizing:border-box;display:grid;place-items:center;font-size:13px;color:var(--c);font-weight:800}
+.ghost.want{opacity:1;border-style:solid;animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--c) 30%,transparent)}}
+.drop{animation:drop .28s cubic-bezier(.3,1.4,.6,1)}
+@keyframes drop{from{transform:translateY(-40px);opacity:.2}}
+
+/* tubes */
+.rack{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:6px}
+.tube{position:relative;width:56px;padding:22px 0 8px;border:3px solid var(--line);border-top:none;border-radius:0 0 30px 30px;background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.1) 30%,rgba(255,255,255,.02) 60%);
+  display:flex;flex-direction:column-reverse;align-items:center;gap:6px;cursor:pointer;color:inherit;font:inherit}
+.tube::before{content:"";position:absolute;top:0;left:-7px;right:-7px;height:6px;border-radius:4px;background:var(--line)}
+.tube .num{position:absolute;bottom:-22px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tube:hover{border-color:var(--muted)}
+.tube.done{border-color:var(--ok);animation:glow .5s}
+.tube.wrong{border-color:var(--bad);animation:shake .4s}
+@keyframes glow{50%{box-shadow:0 0 24px var(--ok)}}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+
+.msg{text-align:center;min-height:20px;font-weight:700;font-size:14px;color:var(--muted);margin-top:18px}
+.msg.good{color:var(--ok)} .msg.bad{color:var(--bad)}
+
+/* overlay */
+.overlay{position:fixed;inset:0;background:rgba(10,13,19,.82);display:grid;place-items:center;padding:16px;z-index:5;backdrop-filter:blur(3px)}
+.overlay[hidden]{display:none}
+.card{background:var(--bench);border:1px solid var(--line);border-radius:18px;padding:24px;max-width:400px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
+.card h2{font-family:var(--f-display);font-weight:400;margin:0;font-size:26px;text-wrap:balance}
+.card p{margin:0;line-height:1.5;color:var(--muted)}
+.card ol{margin:0;padding-left:20px;line-height:1.55;display:flex;flex-direction:column;gap:4px}
+.card .why{color:var(--fg);background:var(--glass);border-left:4px solid var(--bad);padding:10px 12px;border-radius:6px}
+.btn{font-family:var(--f-display);font-size:18px;border:none;border-radius:12px;padding:14px;cursor:pointer;background:var(--c-orange);color:#1b1206}
+.btn:hover{filter:brightness(1.08)} .btn:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+kbd{font-family:var(--f-body);background:var(--glass);border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:12px}
+@media (max-width:420px){.tube{width:50px}.rack{gap:8px}.ghost,.ball{width:34px;height:34px}h1{font-size:23px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+
+<div class="app">
+  <header>
+    <h1>Ters<span>Sort</span></h1>
+    <div class="stats">
+      <div class="stat"><b id="lvl">1</b><small>Seviye</small></div>
+      <div class="stat"><b id="score">0</b><small>Puan</small></div>
+      <div class="stat"><b id="best">0</b><small>Rekor</small></div>
+    </div>
+  </header>
+
+  <div class="rule" id="rule"></div>
+
+  <div class="feed">
+    <div class="pipe">
+      <span class="label">Gelen top</span>
+      <div id="cur"></div>
+      <div class="next" id="next"></div>
+      <div class="timer"><i id="bar"></i></div>
+    </div>
+    <div class="hold">
+      <span class="label">Cep</span>
+      <button class="pocket" id="p0" aria-label="Cep 1"></button>
+      <button class="pocket" id="p1" aria-label="Cep 2"></button>
+    </div>
+  </div>
+
+  <div class="rack" id="rack"></div>
+  <div class="msg" id="msg"></div>
+</div>
+
+<div class="overlay" id="ov">
+  <div class="card" id="card"></div>
+</div>
+
+<script>
+const COLORS=[
+  {id:'red',name:'Kırmızı',sym:'●'},
+  {id:'blue',name:'Mavi',sym:'▲'},
+  {id:'orange',name:'Turuncu',sym:'■'},
+  {id:'yellow',name:'Sarı',sym:'◆'},
+  {id:'purple',name:'Mor',sym:'★'},
+];
+const CAP=4, TUBES_PER_LEVEL=5;
+const $=id=>document.getElementById(id);
+let S, raf=0, lastT=0;
+let best=0; try{best=+localStorage.getItem('terssort-best')||0}catch(e){}
+
+function levelCfg(l){
+  return {
+    colors: Math.min(5, 2+l),            // 3,4,5,5…
+    tubes:  l<2?3 : l<5?4 : 5,
+    mode:   l<=2?'mono' : l<=3?'pair' : 'mix', // tek renk → iki renk blok → karışık sıra
+    time:   Math.max(2.6, 8 - (l-1)*0.8),
+  };
+}
+const RULE_TEXT={
+  mono:'Tüpteki halkalar o tüpün hangi rengi istediğini gösterir. <strong>Topu sadece onu isteyen tüpe</strong> bırak. Yanlış tüp = oyun biter.',
+  pair:'Artık tüpler iki renk istiyor: önce alttaki, sonra üstteki. <strong>Sıra önemli.</strong>',
+  mix:'Tüpler karışık sıra istiyor (ör. maviden sonra kırmızı). <strong>Parlayan halka</strong> sıradaki rengi gösterir.',
+};
+const rnd=n=>Math.floor(Math.random()*n);
+const pick=a=>a[rnd(a.length)];
+
+function newRecipe(self){
+  const n=S.cfg.colors, used=S.tubes?S.tubes.filter(t=>t!==self).map(t=>t.recipe[0]):[];
+  if(S.cfg.mode==='mono'){
+    let free=[...Array(n).keys()].filter(c=>!used.includes(c));
+    const c=free.length?pick(free):rnd(n);
+    return Array(CAP).fill(c);
+  }
+  if(S.cfg.mode==='pair'){
+    const a=rnd(n); let b=rnd(n); while(b===a)b=rnd(n);
+    return [a,a,b,b];
+  }
+  return Array.from({length:CAP},()=>rnd(n));
+}
+function needed(){return S.tubes.filter(t=>t.filled<CAP).map(t=>t.recipe[t.filled])}
+function genBall(){
+  // çoğunlukla bir tüpün beklediği renk gelir, arada cebe atman gereken "fazlalık" toplar
+  const need=needed();
+  return need.length&&Math.random()<0.72 ? pick(need) : rnd(S.cfg.colors);
+}
+
+function start(level=1, keepScore=false){
+  S={level, score:keepScore?S.score:0, cfg:levelCfg(level), tubes:null, queue:[], hold:[null,null], sel:'q', doneCount:0, timeLeft:0, over:false};
+  S.tubes=[];
+  for(let i=0;i<S.cfg.tubes;i++) S.tubes.push({recipe:newRecipe(), filled:0});
+  for(let i=0;i<4;i++) S.queue.push(genBall());
+  S.timeLeft=S.cfg.time;
+  $('ov').hidden=true;
+  render(); say(level>1?`Seviye ${level}! ${S.cfg.tubes} tüp, ${S.cfg.colors} renk.`:'Gelen topu doğru tüpe bırak.', 'good');
+  lastT=performance.now(); cancelAnimationFrame(raf); raf=requestAnimationFrame(tick);
+}
+
+function tick(t){
+  if(S.over) return;
+  const dt=Math.min(0.1,(t-lastT)/1000); lastT=t;
+  S.timeLeft-=dt;
+  const f=Math.max(0,S.timeLeft/S.cfg.time);
+  const bar=$('bar'); bar.style.transform=`scaleX(${f})`;
+  bar.style.background= f>.5?'var(--ok)':f>.25?'var(--warn)':'var(--bad)';
+  if(S.timeLeft<=0){ return gameOver(`Süre doldu. ${COLORS[S.queue[0]].name} topu bir yere koymadın.`); }
+  raf=requestAnimationFrame(tick);
+}
+
+function ballEl(c,cls=''){
+  const d=document.createElement('div'); d.className='ball '+cls;
+  d.style.setProperty('--c',`var(--c-${COLORS[c].id})`); d.textContent=COLORS[c].sym;
+  d.title=COLORS[c].name; return d;
+}
+function render(){
+  $('lvl').textContent=S.level; $('score').textContent=S.score; $('best').textContent=best;
+  $('rule').innerHTML=`<strong>Kural:</strong> ${RULE_TEXT[S.cfg.mode]} Uymayan topu <strong>cebe</strong> at (2 yer). Seviye için ${TUBES_PER_LEVEL-S.doneCount} tüp daha doldur.`;
+  const cur=$('cur'); cur.innerHTML='';
+  const b=ballEl(S.queue[0],'big'+(S.sel==='q'?' sel':'')); b.onclick=()=>{S.sel='q';render()}; cur.appendChild(b);
+  const nx=$('next'); nx.innerHTML=''; S.queue.slice(1).forEach(c=>nx.appendChild(ballEl(c,'sm')));
+  [0,1].forEach(i=>{
+    const p=$('p'+i); p.innerHTML=''; p.classList.toggle('sel',S.sel===i);
+    if(S.hold[i]!==null) p.appendChild(ballEl(S.hold[i]));
+    p.setAttribute('aria-label', S.hold[i]===null?`Cep ${i+1}: boş`:`Cep ${i+1}: ${COLORS[S.hold[i]].name}`);
+  });
+  const rack=$('rack'); rack.innerHTML='';
+  S.tubes.forEach((t,i)=>{
+    const el=document.createElement('button'); el.className='tube'; el.id='t'+i;
+    el.setAttribute('aria-label',t.filled<CAP?`Tüp ${i+1}, sıradaki: ${COLORS[t.recipe[t.filled]].name}`:`Tüp ${i+1}: dolu`);
+    t.recipe.forEach((c,k)=>{
+      if(k<t.filled){ el.appendChild(ballEl(c, k===t.filled-1&&t.justDropped?'drop':'')); }
+      else{
+        const g=document.createElement('div'); g.className='ghost'+(k===t.filled?' want':'');
+        g.style.setProperty('--c',`var(--c-${COLORS[c].id})`); g.textContent=COLORS[c].sym; el.appendChild(g);
+      }
+    });
+    t.justDropped=false;
+    const n=document.createElement('span'); n.className='num'; n.textContent=i+1; el.appendChild(n);
+    el.onclick=()=>placeIn(i);
+    rack.appendChild(el);
+  });
+}
+function say(text,cls=''){const m=$('msg'); m.textContent=text; m.className='msg '+cls}
+
+function selectedColor(){return S.sel==='q'?S.queue[0]:S.hold[S.sel]}
+function takeSelected(){
+  if(S.sel==='q'){ S.queue.shift(); S.queue.push(genBall()); S.timeLeft=S.cfg.time; }
+  else { S.hold[S.sel]=null; S.sel='q'; }
+}
+
+function placeIn(i){
+  if(S.over) return;
+  const t=S.tubes[i]; if(t.filled>=CAP) return; // tüp boşalıyor, bekle
+  const c=selectedColor(), want=t.recipe[t.filled];
+  if(c!==want){
+    $('t'+i).classList.add('wrong');
+    return gameOver(`${COLORS[c].name} topu ${i+1}. tüpe koydun ama orada <b>${COLORS[want].name}</b> bekleniyordu.`);
+  }
+  takeSelected();
+  t.filled++; t.justDropped=true; S.score+=10*S.level;
+  if(t.filled<CAP){ say('Doğru!','good'); return afterMove(); }
+  S.score+=50*S.level; S.doneCount++;
+  say(`Tüp ${i+1} tamam! +${50*S.level}`,'good');
+  render(); $('t'+i).classList.add('done');
+  if(S.doneCount>=TUBES_PER_LEVEL) return setTimeout(()=>{ if(!S.over) start(S.level+1,true) },700);
+  setTimeout(()=>{ if(S.over)return; t.recipe=newRecipe(t); t.filled=0; afterMove(); },450);
+}
+function toPocket(i){
+  if(S.over) return;
+  if(S.hold[i]!==null){ S.sel = S.sel===i?'q':i; render(); return; }
+  if(S.sel!=='q'){ // cepten cebe taşı
+    S.hold[i]=S.hold[S.sel]; S.hold[S.sel]=null; S.sel='q'; render(); return;
+  }
+  S.hold[i]=S.queue[0]; takeSelected(); say('Cebe attın. Sonra ona dokunup tüpe koyabilirsin.'); afterMove();
+}
+function afterMove(){
+  if(S.over) return;
+  render();
+  // sıkıştın mı? gelen top da ceptekiler de hiçbir tüpe uymuyor ve cep dolu
+  const need=needed(), balls=[S.queue[0],...S.hold.filter(x=>x!==null)];
+  if(S.tubes.some(t=>t.filled>=CAP)) return; // bir tüp yenileniyor, karar verme
+  if(S.hold.every(x=>x!==null) && !balls.some(b=>need.includes(b)))
+    gameOver('Sıkıştın: cepler dolu ve hiçbir top bir tüpe uymuyor.');
+}
+function gameOver(why){
+  S.over=true; cancelAnimationFrame(raf);
+  if(S.score>best){best=S.score; try{localStorage.setItem('terssort-best',best)}catch(e){}}
+  $('best').textContent=best;
+  showCard(`<h2>Oyun bitti</h2><p class="why">${why}</p>
+    <p>Seviye <b>${S.level}</b> · Puan <b>${S.score}</b> · Rekor <b>${best}</b></p>
+    <button class="btn" id="go">Tekrar oyna</button>`);
+}
+function showCard(html){ $('card').innerHTML=html; $('ov').hidden=false; const g=$('go'); g.onclick=()=>start(1); g.focus(); }
+
+$('p0').onclick=()=>toPocket(0); $('p1').onclick=()=>toPocket(1);
+document.addEventListener('keydown',e=>{
+  if(!$('ov').hidden){ if(e.key==='Enter'||e.key===' '){e.preventDefault();start(1)} return; }
+  const n=+e.key; if(n>=1&&n<=S.tubes.length){placeIn(n-1);return}
+  if(e.key==='q'||e.key==='Q')toPocket(0);
+  if(e.key==='w'||e.key==='W')toPocket(1);
+  if(e.key==='Escape'){S.sel='q';render()}
+});
+
+// başlangıç: arkada örnek bir oyun dursun, üstünde nasıl oynanır kartı
+S={level:1,score:0,cfg:levelCfg(1),tubes:null,queue:[],hold:[null,null],sel:'q',doneCount:0,timeLeft:8,over:true};
+S.tubes=[]; for(let i=0;i<3;i++)S.tubes.push({recipe:newRecipe(),filled:i});
+for(let i=0;i<4;i++)S.queue.push(genBall());
+render();
+showCard(`<h2>Ters Sort</h2>
+  <p>Magic Sort'un tersi: renkler karışık geliyor, sen <b>doğru tüpe</b> dağıtıyorsun.</p>
+  <ol>
+    <li>Üstteki borudan sırayla renkli toplar gelir.</li>
+    <li>Her tüpte boş halkalar var; <b>parlayan halka</b> o tüpün sıradaki istediği renk.</li>
+    <li>Topu bir tüpe dokunarak bırak. <b>Yanlış tüp = oyun biter.</b></li>
+    <li>Hiçbir yere uymuyorsa <b>cebe</b> at, sonra cepteki topa dokunup tüpe koy.</li>
+    <li>Süre çubuğu bitmeden karar ver. Dolan tüp boşalır, yeni sipariş gelir.</li>
+  </ol>
+  <p>İlk seviyelerde her tüp tek renk ister (ör. kırmızı 2. tüpe). İlerledikçe sıra da önemli olur (ör. maviden sonra kırmızı).</p>
+  <p>Klavye: <kbd>1</kbd>–<kbd>5</kbd> tüp, <kbd>Q</kbd> <kbd>W</kbd> cepler.</p>
+  <button class="btn" id="go">Başla</button>`);
+</script>
+
+</body>
+</html>
